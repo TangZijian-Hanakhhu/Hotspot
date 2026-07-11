@@ -46,15 +46,10 @@ const TRUNCATION_NOTICE = "\n\n---\n> ⚠️ 内容超过 GitHub Issue 上限，
 /** GitHub label colors by label name. Default: "0075ca". */
 const LABEL_COLORS: Record<string, string> = {
   douyin: "000000",
-  "douyin-en": "333333",
   bili: "fb7299",
-  "bili-en": "fc8bab",
   "bili-music": "ff6b9d",
-  "bili-music-en": "ff9bc4",
   weekly: "7c3aed",
-  "weekly-en": "9f67f0",
   monthly: "0d9488",
-  "monthly-en": "2dd4bf",
 };
 
 /**

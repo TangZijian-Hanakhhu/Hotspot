@@ -8,7 +8,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { type Lang, FOOTER } from "./i18n.ts";
+import { FOOTER } from "./i18n.ts";
 import { sleep } from "./date.ts";
 import { type LlmProvider, createProvider } from "./providers/index.ts";
 
@@ -59,12 +59,27 @@ export function is429(err: unknown): boolean {
   return (err as { status?: number })?.status === 429 || String(err).includes("429");
 }
 
+/**
+ * Strip chain-of-thought that some "thinking" models emit inline in the final
+ * content (e.g. <think>...</think> blocks). The report must only contain the
+ * final answer - reasoning text must never reach published output.
+ */
+export function stripThinkTags(text: string): string {
+  return text
+    .replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, "")
+    .replace(/^\s*<think(?:ing)?>[\s\S]*/gi, "") // unclosed tag: drop everything after it
+    .trim();
+}
+
 export async function callLlm(prompt: string, maxTokens = LLM_TOKENS_DEFAULT): Promise<string> {
   for (let attempt = 0; ; attempt++) {
     await acquireSlot();
     let released = false;
     try {
-      return await provider.call(prompt, maxTokens);
+      const raw = await provider.call(prompt, maxTokens);
+      const cleaned = stripThinkTags(raw);
+      if (!cleaned) throw new Error("Empty response after stripping reasoning content");
+      return cleaned;
     } catch (err) {
       if (attempt < MAX_RETRIES && is429(err)) {
         releaseSlot();
@@ -139,8 +154,8 @@ export function saveFile(content: string, ...segments: string[]): string {
   return filepath;
 }
 
-export function autoGenFooter(lang: Lang = "zh"): string {
+export function autoGenFooter(): string {
   const digestRepo = process.env["DIGEST_REPO"] ?? "";
   if (!digestRepo) return "";
-  return `\n\n---\n*${FOOTER.autoGen[lang]} [popular-radar](https://github.com/${digestRepo})${lang === "en" ? "." : " 自动生成。"}*`;
+  return `\n\n---\n*${FOOTER.autoGen} [popular-radar](https://github.com/${digestRepo}) 自动生成。*`;
 }

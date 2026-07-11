@@ -3,12 +3,15 @@
  *
  * Pipeline (mirrors agents-radar's structure, simplified for hot sources):
  *   1. Fetch all hot sources in parallel via DailyHotApi
- *   2. Generate ZH + EN reports in parallel (one report per source per language)
+ *   2. Generate Chinese reports in parallel (one report per source)
  *   3. Generate highlights for Telegram/Feishu notifications
  *   4. Create GitHub issues
  *
+ * Chinese-only: data sources are Chinese platforms, so no English reports
+ * are generated (saves ~50% LLM tokens).
+ *
  * Env vars:
- *   LLM_PROVIDER        - "anthropic" | "openai" | "github-copilot" | "openrouter" | "deepseek"
+ *   LLM_PROVIDER        - "anthropic" | "openai" | "github-copilot" | "openrouter" | "deepseek" | "volcano"
  *   GITHUB_TOKEN        - GitHub token for issue creation
  *   DIGEST_REPO         - owner/repo where digest issues are posted (optional)
  *   DAILYHOT_BASE_URL   - self-hosted DailyHotApi base URL
@@ -20,7 +23,6 @@ import { saveHotReport } from "./report-savers.ts";
 import { callLlm, parseLlmJson, saveFile, autoGenFooter } from "./report.ts";
 import { buildHighlightsPrompt, type ReportHighlights } from "./prompts-data.ts";
 import { toCstDateStr, toUtcStr } from "./date.ts";
-import { type Lang } from "./i18n.ts";
 
 // ---------------------------------------------------------------------------
 // Repo config - loaded from config.yml, falls back to built-in defaults
@@ -58,48 +60,28 @@ async function main(): Promise<void> {
   console.log("  Fetching hot data in parallel...");
   const allHotData = await fetchAllHotData(HOT_SOURCES);
 
-  // 2. Generate + save all reports (zh + en in parallel, all sources in parallel)
-  console.log("  Generating and saving reports in ZH and EN in parallel...");
-  const reportContents: Record<Lang, Record<string, string>> = { zh: {}, en: {} };
+  // 2. Generate + save all reports in parallel (Chinese only)
+  console.log("  Generating and saving reports in parallel...");
+  const reportContents: Record<string, string> = {};
+  const footer = autoGenFooter();
 
-  const savePromises: Promise<void>[] = [];
-  for (const lang of ["zh", "en"] as const) {
-    const footer = autoGenFooter(lang);
-    for (const data of allHotData) {
-      savePromises.push(
-        (async () => {
-          const content = await saveHotReport(data, utcStr, dateStr, digestRepo, footer, lang);
-          if (content) {
-            reportContents[lang][`ai-${data.source.id}`] = content;
-          }
-        })(),
-      );
-    }
-  }
-  await Promise.all(savePromises);
+  await Promise.all(
+    allHotData.map(async (data) => {
+      const content = await saveHotReport(data, utcStr, dateStr, digestRepo, footer);
+      if (content) {
+        reportContents[`ai-${data.source.id}`] = content;
+      }
+    }),
+  );
 
   // 3. Generate highlights for Telegram/Feishu notifications
   console.log("  Generating highlights for notifications...");
-  const highlights: Record<Lang, ReportHighlights> = { zh: {}, en: {} };
-  // zh and en are parsed independently so a failure in one language doesn't
-  // wipe the other (a single bad LLM response used to leave both empty).
-  const [zhRes, enRes] = await Promise.allSettled([
-    callLlm(buildHighlightsPrompt(reportContents.zh, "zh"), 2048),
-    callLlm(buildHighlightsPrompt(reportContents.en, "en"), 2048),
-  ]);
-  for (const [lang, res] of [
-    ["zh", zhRes],
-    ["en", enRes],
-  ] as const) {
-    if (res.status !== "fulfilled") {
-      console.error(`  [highlights] ${lang} generation failed: ${res.reason}`);
-      continue;
-    }
-    try {
-      highlights[lang] = parseLlmJson<ReportHighlights>(res.value);
-    } catch (err) {
-      console.error(`  [highlights] ${lang} parse failed: ${err}`);
-    }
+  let highlights: ReportHighlights = {};
+  try {
+    const raw = await callLlm(buildHighlightsPrompt(reportContents), 2048);
+    highlights = parseLlmJson<ReportHighlights>(raw);
+  } catch (err) {
+    console.error(`  [highlights] generation failed: ${err}`);
   }
 
   const highlightsPath = saveFile(JSON.stringify(highlights, null, 2), dateStr, "highlights.json");

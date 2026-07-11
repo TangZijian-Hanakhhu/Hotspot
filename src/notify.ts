@@ -3,6 +3,7 @@
  * with links to the latest reports. Skips silently if secrets are not set.
  *
  * Ported from agents-radar - only the branding and PAGES_URL default differ.
+ * Chinese-only.
  *
  * Required env vars:
  *   TELEGRAM_BOT_TOKEN  - bot token from @BotFather
@@ -16,11 +17,6 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { NOTIFY_LABELS } from "./i18n.ts";
 import type { ReportHighlights } from "./prompts-data.ts";
-
-export interface Highlights {
-  zh: ReportHighlights;
-  en: ReportHighlights;
-}
 
 const PAGES_URL_DEFAULT = "https://tangzijian-hanakhhu.github.io/popular-radar";
 
@@ -52,9 +48,10 @@ export function buildMessage(
   date: string,
   reports: string[],
   pagesUrl?: string,
-  highlights?: Highlights | null,
+  highlights?: ReportHighlights | null,
 ): string {
   const PAGES_URL = (pagesUrl ?? process.env["PAGES_URL"] ?? PAGES_URL_DEFAULT).replace(/\/$/, "");
+  // Defensive: drop legacy -en entries from historical manifests
   const baseReports = reports.filter((r) => !r.endsWith("-en"));
   const isWeekly = baseReports.includes("ai-weekly");
   const isMonthly = baseReports.includes("ai-monthly");
@@ -69,24 +66,15 @@ export function buildMessage(
     ...baseReports.filter((r) => r.includes("weekly") || r.includes("monthly")),
   ];
 
-  const zhHighlights = highlights?.zh ?? {};
-
   for (const r of ordered) {
-    const zhLabel = NOTIFY_LABELS[r]?.zh ?? r;
-    const zhUrl = `${PAGES_URL}/#${date}/${r}`;
-    const enKey = `${r}-en`;
+    const label = NOTIFY_LABELS[r] ?? r;
+    const url = `${PAGES_URL}/#${date}/${r}`;
 
     lines.push(""); // blank line before each report section
-    if (reports.includes(enKey)) {
-      const enLabel = NOTIFY_LABELS[r]?.en ?? "EN";
-      const enUrl = `${PAGES_URL}/#${date}/${enKey}`;
-      lines.push(`• <a href="${zhUrl}">${zhLabel}</a>  ·  <a href="${enUrl}">${enLabel}</a>`);
-    } else {
-      lines.push(`• <a href="${zhUrl}">${zhLabel}</a>`);
-    }
+    lines.push(`• <a href="${url}">${label}</a>`);
 
     // Add highlights as indented sub-items
-    const items = zhHighlights[r];
+    const items = highlights?.[r];
     if (items?.length) {
       for (const h of items) {
         lines.push(`  ◦ ${escapeHtml(h)}`);
@@ -122,11 +110,11 @@ async function main(): Promise<void> {
   const { date, reports } = latest;
 
   // Load highlights if available
-  let highlights: Highlights | null = null;
+  let highlights: ReportHighlights | null = null;
   const highlightsPath = path.join("digests", date, "highlights.json");
   if (fs.existsSync(highlightsPath)) {
     try {
-      highlights = JSON.parse(fs.readFileSync(highlightsPath, "utf-8")) as Highlights;
+      highlights = JSON.parse(fs.readFileSync(highlightsPath, "utf-8")) as ReportHighlights;
     } catch {
       console.log("[notify] Failed to parse highlights.json - sending without highlights.");
     }
