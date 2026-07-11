@@ -1,0 +1,40 @@
+# 短视频/内容平台热点日报配置
+#
+# hot_sources: 要采集的平台/分区列表
+#   - id:           报告文件名 slug (生成 ai-<id>.md)
+#   - platform:     DailyHotApi 端点名 (如 douyin / bilibili / kuaishou)
+#   - name:         显示名 (中文)
+#   - type:         可选，分区参数 (如 bilibili 的 "3" = 音乐分区)
+#   - limit:        拉取条数上限
+#   - contentType:  数据类型 "keywords"(热搜词) | "videos"(视频/内容)
+#
+# 数据来源: imsyy/DailyHotApi 自部署实例
+#   环境变量 DAILYHOT_BASE_URL 指向你的部署地址
+
+hot_sources:
+  - id: douyin
+    platform: douyin
+    name: 抖音热搜
+    limit: 50
+    contentType: keywords
+
+  - id: bili
+    platform: bilibili
+    name: B站热门视频
+    limit: 50
+    contentType: videos
+
+  - id: bili-music
+    platform: bilibili
+    name: B站热门音乐
+    type: "3"
+    limit: 30
+    contentType: videos
+
+# LLM 推荐系统配置 (预留, Phase 2 启用)
+recommend:
+  top_k: 5
+  weights:
+    popularity: 0.5
+    recency: 0.3
+    relevance: 0.2

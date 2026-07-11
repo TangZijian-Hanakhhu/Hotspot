@@ -1,0 +1,48 @@
+{
+  "name": "popular-radar",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "短视频/内容平台热点日报自动生成系统 (抖音/B站/快手/小红书)",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "manifest": "tsx src/generate-manifest.ts",
+    "weekly": "tsx src/weekly.ts",
+    "monthly": "tsx src/monthly.ts",
+    "notify": "tsx src/notify.ts",
+    "notify:feishu": "tsx src/feishu.ts",
+    "close-stale": "tsx src/close-stale-issues.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "dotenv": "^17.3.1",
+    "js-yaml": "^4.1.1",
+    "marked": "^17.0.4",
+    "openai": "^6.27.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9",
+    "@types/js-yaml": "^4.0.9",
+    "@types/marked": "^6.0.0",
+    "@types/node": "^25.3.5",
+    "@vitest/coverage-v8": "^4.0.18",
+    "eslint": "^9",
+    "eslint-config-prettier": "^10",
+    "husky": "^9.1.7",
+    "prettier": "^3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8",
+    "vitest": "^4.0.18"
+  }
+}
