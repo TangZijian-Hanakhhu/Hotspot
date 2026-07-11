@@ -1,54 +1,26 @@
 {
-  "zh": {
-    "ai-bili": [
-      "《遗忘之海》公测PV播放破1064万登顶热门榜",
-      "路怒反杀纪实视频播放破982万位列热度第二",
-      "多条广西救灾祈福内容登榜引全站正向共鸣",
-      "毕导800万粉读评论视频播放破163万引热议",
-      "小潮院长整活内容《快啊！》播放破460万",
-      "星穹铁道桑多涅二创播放破337万获高赞"
-    ],
-    "ai-bili-music": [
-      "《遗忘之海》PV原声播放破千万登音乐榜榜首",
-      "《凄美地》混响善意小曲播放破932万引共情",
-      "翻唱《NIGHT DANCER》播放破221万获全站推荐",
-      "滔搏MSI加油单曲播放破243万引粉丝打call",
-      "门门原创一镜到底MV播放破521万获高赞",
-      "《See You Again》混搭Remix播放破178万爆火"
-    ],
-    "ai-douyin": [
-      "台风巴威登浙江话题热度破1210万霸榜第一",
-      "商业航天燃料突破话题热度破1114万登Top3",
-      "《功夫女足》8个相关话题登榜票房破2亿",
-      "挪威vs英格兰女足赛事热度破1032万",
-      "“教师全面硕士化”系谣言热度破778万",
-      "HLE晋级LCK决赛话题热度破771万引热议"
-    ]
-  },
-  "en": {
-    "ai-bili": [
-      "*Forgotten Sea* open-world PV hits 10.6M+ views on Bilibili trending.",
-      "Viral road rage dashcam clip nears 10M views, sparks road safety talks.",
-      "Guangxi flood solidarity clips draw 20M+ total views across trending.",
-      "Official flood rescue footage leads positive Bilibili content engagement.",
-      "*The Next One S7* variety clips hold top ranks with young Bilibili users.",
-      "Xiaochao Dean's sketch comedy lands in Bilibili's top 10 trending."
-    ],
-    "ai-douyin": [
-      "Typhoon Bavi Zhejiang landfall tops Douyin hot search with 12.1M hotness.",
-      "Domestic commercial aerospace breakthrough sparks widespread national pride.",
-      "*Kung Fu Women's Soccer* has 9 hot search entries, breaks box office records.",
-      "Norway vs England Euro match sparks massive Douyin fan discussion.",
-      "Summer no-makeup MOTD challenge gains traction with female Douyin users.",
-      "HLE esports tournament advancement draws 8M+ Douyin search views."
-    ],
-    "ai-bili-music": [
-      "*Forgotten Sea* game PV tops Bilibili Hot Music with 10.6M+ views.",
-      "Music-backed road rage clip hits 9.8M+ views on Hot Music chart.",
-      "Guangxi flood tribute edits use trending ballads to drive public support.",
-      "Cross-strait creators make collaborative flood solidarity music clips.",
-      "Anime game derivative music takes 12 of 30 Hot Music chart spots.",
-      "Variety clips with trending OSTs hold steady user engagement."
-    ]
-  }
+  "ai-bili": [
+    "雨哥到处跑新综播放破12万，登顶今日B站热门",
+    "小潮院长搞怪新作《快啊！》精准戳中年轻人笑点",
+    "火影手游首位1亿战力玩家诞生，引老玩家集体共鸣",
+    "广西汛情救援正能量视频获万级播放，引发共鸣",
+    "原神官方剧情动画播放破1.5万，粉丝讨论度高",
+    "台风居家创意做饭教程实用性趣味性兼具获关注"
+  ],
+  "ai-douyin": [
+    "台风巴威登陆浙江，相关热搜热度破千万居榜首",
+    "我国商业航天燃料突破，话题跻身热搜前三甲",
+    "《功夫女足》票房破2亿，衍生话题刷屏成热点",
+    "网友发内容感谢台风一线救援人员，引发情感共鸣",
+    "“教师全面硕士化”谣言被官方辟谣，消解公众焦虑",
+    "职场裁员自我和解内容引发打工人群体集体共鸣"
+  ],
+  "ai-bili-music": [
+    "《下一个是谁》第七季首播近13万播放登音乐榜榜首",
+    "火影手游1亿战力玩家视频获2.4万播放引玩家共鸣",
+    "原神剧情动画播放破1.5万，引发玩家剧情讨论",
+    "电竞赛事应援曲《陀螺不会飞》触发电竞粉共鸣",
+    "广西汛情相关音乐创作传递正向情感获用户认可",
+    "经典歌曲创意改编播放近万，引发爱好者传播"
+  ]
 }
