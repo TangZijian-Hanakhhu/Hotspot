@@ -9,7 +9,7 @@
 
 import { getReportMeta, ISSUE_LABELS } from "./i18n.ts";
 import { buildKeywordsPrompt, buildVideosPrompt } from "./prompts-data.ts";
-import { callLlm, saveFile } from "./report.ts";
+import { callLlm, saveFile, extractFromFirstH2 } from "./report.ts";
 import { createGitHubIssue } from "./github.ts";
 import type { HotData } from "./hot.ts";
 
@@ -42,7 +42,16 @@ export async function saveHotReport(
       data.source.contentType === "keywords"
         ? buildKeywordsPrompt(data, dateStr)
         : buildVideosPrompt(data, dateStr);
-    const summary = await callLlm(prompt);
+    const raw = await callLlm(prompt);
+
+    // Output contract: body must start at its first "## " section. This
+    // deterministically drops a duplicated H1 title or any stray prose /
+    // reasoning text before the report proper.
+    const summary = extractFromFirstH2(raw);
+    if (!summary) {
+      console.error(`  [${data.source.id}] Output has no "## " section anchor, skipping publish.`);
+      return null;
+    }
 
     // 3. Filename: ai-<id>.md
     const fileName = `ai-${data.source.id}.md`;

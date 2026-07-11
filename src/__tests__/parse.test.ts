@@ -1,7 +1,31 @@
 import { describe, it, expect } from "vitest";
-import { parseLlmJson, stripThinkTags } from "../report.ts";
+import { parseLlmJson, stripThinkTags, extractFromFirstH2 } from "../report.ts";
 import type { HotSource } from "../config.ts";
 import type { HotData } from "../hot.ts";
+
+describe("extractFromFirstH2", () => {
+  it("keeps output that already starts at an H2", () => {
+    expect(extractFromFirstH2("## 今日速览\n内容")).toBe("## 今日速览\n内容");
+  });
+
+  it("drops a duplicated H1 title before the first H2", () => {
+    expect(extractFromFirstH2("# 抖音热搜日报（2026-07-12）\n\n## 今日速览\n内容")).toBe("## 今日速览\n内容");
+  });
+
+  it("drops stray prose / reasoning before the first H2", () => {
+    expect(extractFromFirstH2("用户需要日报，先理清速览，要3-5句…\n\n## 今日速览\n内容")).toBe(
+      "## 今日速览\n内容",
+    );
+  });
+
+  it("accepts numbered H2 variants", () => {
+    expect(extractFromFirstH2("# 标题\n## 1. 今日速览\n内容")).toBe("## 1. 今日速览\n内容");
+  });
+
+  it("returns null when no H2 exists (contract violation)", () => {
+    expect(extractFromFirstH2("只有思考没有结构化正文")).toBeNull();
+  });
+});
 
 describe("stripThinkTags", () => {
   it("keeps plain text unchanged", () => {

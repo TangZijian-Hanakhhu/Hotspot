@@ -9,7 +9,14 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { callLlm, parseLlmJson, saveFile, autoGenFooter, LLM_TOKENS_ROLLUP } from "./report.ts";
+import {
+  callLlm,
+  parseLlmJson,
+  saveFile,
+  autoGenFooter,
+  extractFromFirstH2,
+  LLM_TOKENS_ROLLUP,
+} from "./report.ts";
 import {
   buildWeeklyPrompt,
   buildMonthlyPrompt,
@@ -143,7 +150,14 @@ export async function runWeeklyRollup(): Promise<void> {
   );
 
   console.log("[weekly] Calling LLM for weekly report...");
-  const summary = await callLlm(buildWeeklyPrompt(dailyDigests, weekStr), LLM_TOKENS_ROLLUP);
+  const rawSummary = await callLlm(buildWeeklyPrompt(dailyDigests, weekStr), LLM_TOKENS_ROLLUP);
+
+  // Output contract: body must start at its first "## " section.
+  const summary = extractFromFirstH2(rawSummary);
+  if (!summary) {
+    console.error('[weekly] Output has no "## " section anchor, skipping publish.');
+    return;
+  }
 
   const footer = autoGenFooter();
 
@@ -218,7 +232,14 @@ export async function runMonthlyRollup(): Promise<void> {
   console.log(`[monthly] Source: ${sourceLabel}`);
 
   console.log("[monthly] Calling LLM for monthly report...");
-  const summary = await callLlm(buildMonthlyPrompt(sourceDigests, monthStr), LLM_TOKENS_ROLLUP);
+  const rawSummary = await callLlm(buildMonthlyPrompt(sourceDigests, monthStr), LLM_TOKENS_ROLLUP);
+
+  // Output contract: body must start at its first "## " section.
+  const summary = extractFromFirstH2(rawSummary);
+  if (!summary) {
+    console.error('[monthly] Output has no "## " section anchor, skipping publish.');
+    return;
+  }
 
   const footer = autoGenFooter();
 

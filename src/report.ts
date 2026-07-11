@@ -71,6 +71,19 @@ export function stripThinkTags(text: string): string {
     .trim();
 }
 
+/**
+ * Enforce the report output contract: the body must start at its first H2
+ * heading ("## ..."). Everything before the anchor - a duplicated H1 title,
+ * stray prose, or any reasoning text that escaped upstream guards - is
+ * dropped deterministically. Returns null when no H2 heading exists;
+ * callers must treat that as a failed generation and skip publishing.
+ */
+export function extractFromFirstH2(text: string): string | null {
+  const match = /^##\s.*$/m.exec(text);
+  if (!match) return null;
+  return text.slice(match.index).trim();
+}
+
 export async function callLlm(prompt: string, maxTokens = LLM_TOKENS_DEFAULT): Promise<string> {
   for (let attempt = 0; ; attempt++) {
     await acquireSlot();

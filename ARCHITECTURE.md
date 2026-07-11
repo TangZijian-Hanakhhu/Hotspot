@@ -396,7 +396,14 @@ LlmProvider (接口, types.ts)
 - **调用位置**：`callLlm` 对每次 LLM 返回统一清洗；清洗后为空则抛错（宁可该报告失败，也不发布思考过程）
 - **测试覆盖**：`__tests__/parse.test.ts` 5 个用例（纯文本不变 / 闭合块 / thinking 变体 / 未闭合 / 多块）
 
-#### `callLlm(prompt, maxTokens)` - 核心调用入口（第 74-97 行）
+#### `extractFromFirstH2(text)` - 输出契约掐头（第 81-85 行）
+
+- **功能**：强制执行报告输出契约——正文必须从第一个 `## ` 二级标题开始。锚点之前的一切（模型重复输出的 H1 标题、散文、任何漏网的推理文本）被确定性裁掉；找不到 `## ` 锚点返回 `null`，调用方视为生成失败、跳过发布
+- **设计动机**：不依赖模型"听话"。prompt 契约（见第七章）要求首行为固定 H2 锚点，此函数做确定性兜底；与 `stripThinkTags` 配合构成第四层防线，同时顺带解决模型重复 H1 造成的双标题问题
+- **调用位置**：`report-savers.ts`（日报）、`rollup.ts`（周报/月报）在保存前应用
+- **测试覆盖**：`__tests__/parse.test.ts` 5 个用例（正常 / 双标题 / 散文前缀 / 带编号 H2 / 无锚点判空）
+
+#### `callLlm(prompt, maxTokens)` - 核心调用入口（第 87-110 行）
 
 - **功能**：所有 LLM 调用的唯一入口，内置并发限流、重试与思考文本剥离
 - **并发限流**（第 30-49 行）：
@@ -411,7 +418,7 @@ LlmProvider (接口, types.ts)
   - `finally` 块保证槽位一定释放（用 `released` 标志避免重复释放）
 - **联动**：被 `index.ts`、`report-savers.ts`、`rollup.ts` 调用
 
-#### `parseLlmJson<T>(raw)` - 容错 JSON 解析（第 117-131 行）
+#### `parseLlmJson<T>(raw)` - 容错 JSON 解析（第 130-144 行）
 
 - **功能**：解析 LLM 返回的 JSON，容忍常见格式缺陷
 - **实现**：
@@ -419,20 +426,20 @@ LlmProvider (接口, types.ts)
   2. 用 `CONTROL_CHARS` 正则替换 ASCII 控制字符（U+0000–U+001F）为空格——模型偶尔在字符串里吐裸换行，属非法 JSON
   3. 尝试 `JSON.parse`
   4. 失败时调用 `repairJson` 修复后重试（若修复后与原文相同则抛原错误）
-- **`repairJson(s)`（第 137-144 行）**：
+- **`repairJson(s)`（第 150-157 行）**：
   - 缩窄到最外层 `{`/`[` 到最后 `}`/`]` 的块（去除周围散文）
   - 移除 `}`/`]` 前的尾逗号
 - **设计目的**：单个杂散字符不应导致整个语言的 `highlights.json` 被清空
 - **测试覆盖**：`__tests__/parse.test.ts` 覆盖 clean JSON / 去 fence / 控制字符 / 尾逗号 / 散文包裹 5 种场景
 - **联动**：被 `index.ts`（highlights 解析）、`rollup.ts`（rollup highlights 解析）调用
 
-#### `saveFile(content, ...segments)` - 文件写入（第 150-155 行）
+#### `saveFile(content, ...segments)` - 文件写入（第 163-168 行）
 
 - **功能**：将内容写入 `digests/<segments>`，自动创建父目录
 - **实现**：`path.join("digests", ...segments)` + `fs.mkdirSync(recursive: true)` + `fs.writeFileSync`，返回文件路径
 - **联动**：被所有报告生成器、`rollup.ts`、`index.ts` 调用
 
-#### `autoGenFooter()` - 自动生成页脚（第 157-161 行）
+#### `autoGenFooter()` - 自动生成页脚（第 170-174 行）
 
 - **功能**：生成"由 popular-radar 自动生成"的 Markdown 页脚（中文）
 - **实现**：读取 `DIGEST_REPO`，未设置时返回空字符串；否则拼接 `FOOTER.autoGen` + 仓库链接 + "自动生成。"
@@ -452,7 +459,9 @@ LlmProvider (接口, types.ts)
 
 ## 七、Prompt 构建层 (`src/prompts-data.ts`)
 
-**Prompt 构建层为所有报告类型构建 LLM prompt（全部中文），包含两个数据源 prompt builder（按 contentType 分流）和三个汇总 prompt builder。所有 builder 返回纯字符串，无 LLM 调用，可独立测试。每个 prompt 末尾都显式要求"直接输出报告正文，不要输出任何思考过程"。**
+**Prompt 构建层为所有报告类型构建 LLM prompt（全部中文），包含两个数据源 prompt builder（按 contentType 分流）和三个汇总 prompt builder。所有 builder 返回纯字符串，无 LLM 调用，可独立测试。**
+
+**输出契约**：4 个报告 prompt 末尾均显式约定——不输出思考过程、不重复报告标题、首行必须是固定 H2 锚点（日报「## 今日速览」/ 周报「## 本周要闻」/ 月报「## 月度要闻」），各节一律用 `## ` 二级标题。该契约由 `report.ts` 的 `extractFromFirstH2` 在保存前做确定性强制执行（见第六章）。
 
 ### 7.1 `buildKeywordsPrompt` - 热搜词 prompt（第 19-59 行）
 
@@ -521,9 +530,10 @@ LlmProvider (接口, types.ts)
 ### `saveHotReport(data, utcStr, dateStr, digestRepo, footer)` - 通用报告生成器
 
 - **功能**：生成并保存单个数据源的日报报告，返回报告内容字符串（供 highlights），失败/跳过返回 `null`
-- **实现**（7 步模式）：
+- **实现**（8 步模式）：
   1. **Guard 检查**：`!data.fetchSuccess || data.items.length === 0` 时跳过，日志 "No data available"，返回 `null`
   2. **LLM 调用**：按 `contentType` 分流选 `buildKeywordsPrompt` 或 `buildVideosPrompt`，`callLlm(prompt)`（默认 4096 token）
+  2.5. **输出契约强制**：`extractFromFirstH2(raw)` 裁到首个 `## ` 锚点（去重复标题/散文/推理残留）；无锚点视为失败，返回 `null` 不发布
   3. **文件命名**：`ai-<id>.md`
   4. **Header 构建**：`getReportMeta(source)` 取标题 + 数据源名 + 条数 + 生成时间
   5. **保存**：`saveFile(header + summary + footer, dateStr, fileName)`
@@ -607,7 +617,7 @@ Phase 1 三个日报，每个含 `title: string` + `issueTitle(dateStr)`：
 
 ### 具体功能
 
-#### `ROLLUP_SOURCES` - 动态汇总源（第 29-30 行）
+#### `ROLLUP_SOURCES` - 动态汇总源（第 36-37 行）
 
 ```typescript
 const { hotSources: HOT_SOURCES } = loadConfig();
@@ -619,39 +629,39 @@ const ROLLUP_SOURCES = HOT_SOURCES.map((s) => `ai-${s.id}`);
 
 #### 文件读取辅助
 
-- **`getDateDirs()`（第 36-43 行）**：列出 `digests/` 下匹配 `YYYY-MM-DD` 的目录，降序排列
-- **`readDailyDigest(date)`（第 46-57 行）**：拼接该日所有 `ROLLUP_SOURCES` 日报，每类截断 `MAX_CHARS_PER_REPORT=2500` 字符（超出加"...[摘要截断]"），无内容返回 `null`
-- **`readWeeklyDigest(date)`（第 60-65 行）**：读取 `ai-weekly.md`，截断 3000 字符
+- **`getDateDirs()`（第 43-50 行）**：列出 `digests/` 下匹配 `YYYY-MM-DD` 的目录，降序排列
+- **`readDailyDigest(date)`（第 53-64 行）**：拼接该日所有 `ROLLUP_SOURCES` 日报，每类截断 `MAX_CHARS_PER_REPORT=2500` 字符（超出加"...[摘要截断]"），无内容返回 `null`
+- **`readWeeklyDigest(date)`（第 67-72 行）**：读取 `ai-weekly.md`，截断 3000 字符
 
-#### `toWeekStr(date)` - ISO 周字符串（第 68-75 行）
+#### `toWeekStr(date)` - ISO 周字符串（第 75-82 行）
 
 - **功能**：计算 ISO 周字符串（如 `"2026-W28"`），使用"第一个星期四"规则
 
-#### `generateRollupHighlights(...)` - Highlights 合并（第 81-112 行）
+#### `generateRollupHighlights(...)` - Highlights 合并（第 88-119 行）
 
 - **功能**：为周报/月报生成 highlights，**合并**到已有 `highlights.json`（不覆盖日报 highlights）
 - **实现**：读取已有 highlights（扁平 `ReportHighlights`）→ spread 复制到新对象 → `callLlm(buildHighlightsPrompt({[reportId]: content}, itemsPerReport), 1024)` → `parseLlmJson` 后 `Object.assign` 合并 → 写回
 - **容错**：读取旧文件 parse 失败则从空开始；生成/解析失败只记日志，保留已有 highlights
 
-#### `runWeeklyRollup()` - 周报生成（第 117-167 行）
+#### `runWeeklyRollup()` - 周报生成（第 124-181 行）
 
 - **功能**：基于近 7 天日报生成周报（中文）
 - **实现**：
   1. 计算 `weekStr`（对 CST 时间取 ISO 周）、`dateStr`、`utcStr`
   2. `getDateDirs()` 取近 7 个日期目录，`readDailyDigest` 拼接；全空则跳过
-  3. `callLlm(buildWeeklyPrompt(...), LLM_TOKENS_ROLLUP=8192)`
+  3. `callLlm(buildWeeklyPrompt(...), LLM_TOKENS_ROLLUP=8192)`，输出经 `extractFromFirstH2` 契约裁剪（无锚点则跳过发布）
   4. 拼 header（含覆盖日期范围 `last7[末] ~ last7[首]`）+ footer，保存 `ai-weekly.md`
   5. `generateRollupHighlights(..., "ai-weekly", 6)` 合并 highlights
   6. `digestRepo` 非空时创建 GitHub Issue（label `weekly`）
 - **联动**：`prompts-data.ts`、`report.ts`、`github.ts`、`i18n.ts`、`date.ts`、`config.ts`
 
-#### `runMonthlyRollup()` - 月报生成（第 173-242 行）
+#### `runMonthlyRollup()` - 月报生成（第 187-263 行）
 
 - **功能**：基于**上月**报告生成月报（中文）
 - **实现**：
   1. 覆盖上个月（`cstDate.getUTCMonth() - 1`），`monthStr` 形如 `"2026-06"`
   2. **源选择策略**：上月有 ≥2 期周报 → 用周报（`readWeeklyDigest`，优先）；否则每 4 天采样 1 天日报（最多 10 天，`readDailyDigest`）；全空则跳过
-  3. `callLlm(buildMonthlyPrompt(...), LLM_TOKENS_ROLLUP)`
+  3. `callLlm(buildMonthlyPrompt(...), LLM_TOKENS_ROLLUP)`，输出经 `extractFromFirstH2` 契约裁剪（无锚点则跳过发布）
   4. 拼 header（含来源说明 `sourceLabel`）保存 `ai-monthly.md`
   5. `generateRollupHighlights(..., "ai-monthly", 6)` 合并 highlights
   6. `digestRepo` 非空时创建 GitHub Issue（label `monthly`）
@@ -847,8 +857,10 @@ const ROLLUP_SOURCES = HOT_SOURCES.map((s) => `ai-${s.id}`);
 - **`weekly.ts`**：调用 `rollup.ts` 的 `runWeeklyRollup()`；被 `pnpm weekly` 调用
 - **`monthly.ts`**：调用 `rollup.ts` 的 `runMonthlyRollup()`；被 `pnpm monthly` 调用
 
-### 14.5 `src/__tests__/parse.test.ts` - 单元测试
+### 14.5 `src/__tests__/parse.test.ts` - 单元测试（17 个用例）
 
+- **`stripThinkTags`**：5 个用例（纯文本不变 / 闭合 think 块 / thinking 变体 / 未闭合标签 / 多块）
+- **`extractFromFirstH2`**：5 个用例（正常 / 双标题裁剪 / 散文前缀裁剪 / 带编号 H2 / 无锚点判空）
 - **`parseLlmJson`**：5 个用例（clean JSON / 去 fence / 控制字符 / 尾逗号 / 散文包裹）
 - **config defaults**：文件缺失时返回内置数据源，含 `douyin`
 - **hot data shape**：`HotData` 携带 source 与 items 的形状校验
@@ -1032,4 +1044,5 @@ popular_radar/
 11. **通知静默降级** - Telegram/飞书在对应 secret 未配置时静默跳过，且都有 direct-run guard 防误发
 12. **多渠道一致性** - 日报/周报/月报三条流水线的飞书与 Telegram 推送行为对齐
 13. **思考过程零泄漏** - volcano 请求默认 `thinking: disabled`；基类空正文直接报错、绝不回退 `reasoning_content`；`callLlm` 统一剥离 `<think>` 标签——报告里只允许出现最终结论
+14. **输出契约强制执行** - prompt 约定首行为固定 H2 锚点，保存前 `extractFromFirstH2` 确定性裁到首个 `## `（去重复标题与一切锚前文本），无锚点即判失败不发布；不依赖模型自觉
 ```
