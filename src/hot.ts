@@ -111,7 +111,7 @@ function toItem(raw: ApiListItem): HotItem {
  * agents-radar's fetchers).
  */
 export async function fetchHotData(source: HotSource): Promise<HotData> {
-  const base = (process.env["DAILYHOT_BASE_URL"] ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+  const base = (process.env["DAILYHOT_BASE_URL"] || DEFAULT_BASE_URL).replace(/\/$/, "");
   const params = new URLSearchParams({
     cache: "false",
     limit: String(source.limit),
