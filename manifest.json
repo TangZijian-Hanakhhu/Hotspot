@@ -1,4 +1,16 @@
 {
-  "generated": "2026-07-11T16:24:22.833Z",
-  "dates": []
+  "generated": "2026-07-11T17:54:44.209Z",
+  "dates": [
+    {
+      "date": "2026-07-12",
+      "reports": [
+        "ai-douyin",
+        "ai-douyin-en",
+        "ai-bili",
+        "ai-bili-en",
+        "ai-bili-music",
+        "ai-bili-music-en"
+      ]
+    }
+  ]
 }
