@@ -19,7 +19,7 @@ import { NOTIFY_LABELS } from "./i18n.ts";
 import { loadConfig } from "./config.ts";
 import type { ReportHighlights } from "./prompts-data.ts";
 
-const PAGES_URL_DEFAULT = "https://tangzijian-hanakhhu.github.io/popular-radar";
+const PAGES_URL_DEFAULT = "https://tangzijian-hanakhhu.github.io/Hotspot";
 
 function getWebhookUrls(): string[] {
   const raw = process.env["FEISHU_WEBHOOK_URLS"] ?? process.env["FEISHU_WEBHOOK_URL"] ?? "";

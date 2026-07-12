@@ -70,7 +70,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '@popular_radar' }}
-          PAGES_URL: https://tangzijian-hanakhhu.github.io/popular-radar
+          PAGES_URL: https://tangzijian-hanakhhu.github.io/Hotspot
         run: pnpm notify
 
       - name: Send Feishu notification
@@ -79,5 +79,5 @@ jobs:
           FEISHU_WEBHOOK_DANCE: ${{ secrets.FEISHU_WEBHOOK_DANCE }}
           FEISHU_WEBHOOK_GAME: ${{ secrets.FEISHU_WEBHOOK_GAME }}
           FEISHU_WEBHOOK_ENT: ${{ secrets.FEISHU_WEBHOOK_ENT }}
-          PAGES_URL: https://tangzijian-hanakhhu.github.io/popular-radar
+          PAGES_URL: https://tangzijian-hanakhhu.github.io/Hotspot
         run: pnpm notify:feishu

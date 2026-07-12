@@ -18,7 +18,7 @@ import { pathToFileURL } from "node:url";
 import { NOTIFY_LABELS } from "./i18n.ts";
 import type { ReportHighlights } from "./prompts-data.ts";
 
-const PAGES_URL_DEFAULT = "https://tangzijian-hanakhhu.github.io/popular-radar";
+const PAGES_URL_DEFAULT = "https://tangzijian-hanakhhu.github.io/Hotspot";
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

@@ -738,7 +738,7 @@ const ROLLUP_SOURCES = HOT_SOURCES.map((s) => `ai-${s.id}`);
 #### 共同设计
 
 - 两者都有 direct-run guard，都读 `manifest.json` 找最新日期，都可选加载 `highlights.json`（扁平 `ReportHighlights`），都在 secret 未设置时静默跳过
-- `PAGES_URL` 默认值均为 `https://tangzijian-hanakhhu.github.io/popular-radar`
+- `PAGES_URL` 默认值均为 `https://tangzijian-hanakhhu.github.io/Hotspot`
 
 ---
 
@@ -769,7 +769,7 @@ const ROLLUP_SOURCES = HOT_SOURCES.map((s) => `ai-${s.id}`);
 
 - `REPORT_FILES`：5 个报告 ID（`ai-douyin` / `ai-bili` / `ai-bili-music` / `ai-weekly` / `ai-monthly`）
 - `MAX_FEED_ITEMS = 30`
-- `SITE_URL`：`https://tangzijian-hanakhhu.github.io/popular-radar`
+- `SITE_URL`：`https://tangzijian-hanakhhu.github.io/Hotspot`
 
 ### 12.2 `index.html` - Web UI（单页应用，569 行）
 

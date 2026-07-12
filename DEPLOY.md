@@ -35,7 +35,7 @@ git remote add origin https://github.com/<你的用户名>/popular-radar.git
 git push -u origin main
 ```
 
-> 工作流里 `PAGES_URL` 目前硬编码为 `https://tangzijian-hanakhhu.github.io/popular-radar`。若你的 GitHub 用户名/仓库名不同，请把三个 workflow 里的这个地址一并改掉（只影响飞书消息里的 Web UI/RSS 链接）。
+> 工作流里 `PAGES_URL` 目前硬编码为 `https://tangzijian-hanakhhu.github.io/Hotspot`。若你的 GitHub 用户名/仓库名不同，请把三个 workflow 里的这个地址一并改掉（只影响飞书消息里的 Web UI/RSS 链接）。
 
 ### 第 2 步：配置仓库 Secrets
 
