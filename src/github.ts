@@ -48,6 +48,11 @@ const LABEL_COLORS: Record<string, string> = {
   douyin: "000000",
   bili: "fb7299",
   "bili-music": "ff6b9d",
+  bgm: "f97316",
+  dance: "ec4899",
+  meme: "eab308",
+  game: "22c55e",
+  fandom: "a855f7",
   weekly: "7c3aed",
   monthly: "0d9488",
 };

@@ -27,14 +27,19 @@ import { createGitHubIssue } from "./github.ts";
 import { toCstDateStr, toUtcStr } from "./date.ts";
 import { WEEKLY_REPORT, MONTHLY_REPORT } from "./i18n.ts";
 import { loadConfig } from "./config.ts";
+import { CONTENT_TAGS } from "./classify.ts";
 
 const DIGESTS_DIR = "digests";
 const MAX_CHARS_PER_REPORT = 2500;
 
-// Source report types to read for rollups (in priority order).
-// Derived from config.yml so adding a new source auto-includes it in rollups.
+// Report types to read for rollups: per-source reports (report: true only)
+// plus the cross-source tag reports. Derived from config so changes to the
+// source list auto-propagate.
 const { hotSources: HOT_SOURCES } = loadConfig();
-const ROLLUP_SOURCES = HOT_SOURCES.map((s) => `ai-${s.id}`);
+const ROLLUP_SOURCES = [
+  ...HOT_SOURCES.filter((s) => s.report).map((s) => `ai-${s.id}`),
+  ...CONTENT_TAGS.map((t) => `ai-${t}`),
+];
 
 // ---------------------------------------------------------------------------
 // Helpers

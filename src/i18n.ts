@@ -48,6 +48,11 @@ export const ISSUE_LABELS: Record<string, string> = {
   douyin: "douyin",
   bili: "bili",
   "bili-music": "bili-music",
+  bgm: "bgm",
+  dance: "dance",
+  meme: "meme",
+  game: "game",
+  fandom: "fandom",
   weekly: "weekly",
   monthly: "monthly",
 };
@@ -82,6 +87,21 @@ export function getReportMeta(source: HotSource): ReportMeta {
 }
 
 // ---------------------------------------------------------------------------
+// Tag report metadata (P4 跨源专项报告, used by report-savers.ts)
+// ---------------------------------------------------------------------------
+
+export const TAG_REPORT_META: Record<string, ReportMeta> = {
+  bgm: { title: "热门BGM日报", issueTitle: (dateStr: string) => `🎵 热门BGM日报 ${dateStr}` },
+  dance: {
+    title: "热门舞蹈跟拍日报",
+    issueTitle: (dateStr: string) => `💃 热门舞蹈跟拍日报 ${dateStr}`,
+  },
+  meme: { title: "热梗与抽象日报", issueTitle: (dateStr: string) => `😂 热梗与抽象日报 ${dateStr}` },
+  game: { title: "游戏热点日报", issueTitle: (dateStr: string) => `🎮 游戏热点日报 ${dateStr}` },
+  fandom: { title: "饭圈动态日报", issueTitle: (dateStr: string) => `⭐ 饭圈动态日报 ${dateStr}` },
+};
+
+// ---------------------------------------------------------------------------
 // Footer (used in report.ts)
 // ---------------------------------------------------------------------------
 
@@ -97,6 +117,11 @@ export const REPORT_LABELS: Record<string, string> = {
   "ai-douyin": "抖音热搜日报",
   "ai-bili": "B站热门视频日报",
   "ai-bili-music": "B站热门音乐日报",
+  "ai-bgm": "热门BGM日报",
+  "ai-dance": "热门舞蹈跟拍日报",
+  "ai-meme": "热梗与抽象日报",
+  "ai-game": "游戏热点日报",
+  "ai-fandom": "饭圈动态日报",
   "ai-weekly": "短视频热点周报",
   "ai-monthly": "短视频热点月报",
 };
@@ -109,6 +134,11 @@ export const NOTIFY_LABELS: Record<string, string> = {
   "ai-douyin": "抖音热搜",
   "ai-bili": "B站热门",
   "ai-bili-music": "B站音乐",
+  "ai-bgm": "🎵 热门BGM",
+  "ai-dance": "💃 舞蹈跟拍",
+  "ai-meme": "😂 热梗抽象",
+  "ai-game": "🎮 游戏热点",
+  "ai-fandom": "⭐ 饭圈动态",
   "ai-weekly": "短视频热点周报",
   "ai-monthly": "短视频热点月报",
 };

@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { NOTIFY_LABELS } from "./i18n.ts";
+import { loadConfig } from "./config.ts";
 import type { ReportHighlights } from "./prompts-data.ts";
 
 const PAGES_URL_DEFAULT = "https://tangzijian-hanakhhu.github.io/popular-radar";
@@ -65,10 +66,15 @@ export function buildFeishuMessage(
   reports: string[],
   pagesUrl?: string,
   highlights?: ReportHighlights | null,
+  includeReports?: string[] | null,
 ): string {
   const PAGES_URL = (pagesUrl ?? process.env["PAGES_URL"] ?? PAGES_URL_DEFAULT).replace(/\/$/, "");
   // Defensive: drop legacy -en entries from historical manifests
-  const baseReports = reports.filter((r) => !r.endsWith("-en"));
+  let baseReports = reports.filter((r) => !r.endsWith("-en"));
+  // Profile routing (P5): keep only the reports this creator cares about
+  if (includeReports && includeReports.length > 0) {
+    baseReports = baseReports.filter((r) => includeReports.includes(r));
+  }
   const isWeekly = baseReports.includes("ai-weekly");
   const isMonthly = baseReports.includes("ai-monthly");
 
@@ -102,8 +108,11 @@ export function buildFeishuMessage(
 
 async function main(): Promise<void> {
   const urls = getWebhookUrls();
-  if (!urls.length) {
-    console.log("[feishu] FEISHU_WEBHOOK_URLS not set - skipping.");
+  const hasProfileWebhook = loadConfig().creatorProfiles.some((p) =>
+    (process.env[p.feishuWebhookEnv] ?? "").trim(),
+  );
+  if (!urls.length && !hasProfileWebhook) {
+    console.log("[feishu] No FEISHU_WEBHOOK_URLS or profile webhooks set - skipping.");
     return;
   }
 
@@ -137,12 +146,40 @@ async function main(): Promise<void> {
   const isWeekly = reports.some((r) => r === "ai-weekly");
   const icon = isMonthly ? "📆" : isWeekly ? "📅" : "📡";
   const suffix = isMonthly ? " 月报" : isWeekly ? " 周报" : "";
-  const title = `${icon} popular-radar${suffix} · ${date}`;
 
-  const content = buildFeishuMessage(date, reports, undefined, highlights);
+  // 1. Full push to the default webhooks (unchanged behaviour)
+  if (urls.length > 0) {
+    const title = `${icon} popular-radar${suffix} · ${date}`;
+    const content = buildFeishuMessage(date, reports, undefined, highlights);
+    console.log(`[feishu] Sending to ${urls.length} webhook(s) for ${date} (${reports.length} reports)…`);
+    await sendFeishu(title, content);
+  }
 
-  console.log(`[feishu] Sending to ${urls.length} webhook(s) for ${date} (${reports.length} reports)…`);
-  await sendFeishu(title, content);
+  // 2. Profile-routed pushes (P5): each creator profile gets only the tag
+  //    reports it cares about, on its own webhook. Unconfigured -> skip.
+  const { creatorProfiles } = loadConfig();
+  for (const profile of creatorProfiles) {
+    const webhook = (process.env[profile.feishuWebhookEnv] ?? "").trim();
+    if (!webhook) continue; // silently skip unconfigured profiles
+
+    const includeReports = profile.cares.map((tag) => `ai-${tag}`);
+    const matched = reports.filter((r) => includeReports.includes(r));
+    if (matched.length === 0) {
+      console.log(`[feishu] [${profile.id}] no matching reports today - skipping.`);
+      continue;
+    }
+
+    const title = `${icon} popular-radar·${profile.name}${suffix} · ${date}`;
+    const content = buildFeishuMessage(date, reports, undefined, highlights, includeReports);
+    console.log(`[feishu] [${profile.id}] Sending ${matched.length} report(s)…`);
+    try {
+      await sendToOneWebhook(webhook, title, content);
+    } catch (err) {
+      // One profile failing must not block the others.
+      console.error(`[feishu] [${profile.id}] push failed: ${err}`);
+    }
+  }
+
   console.log("[feishu] Done!");
 }
 

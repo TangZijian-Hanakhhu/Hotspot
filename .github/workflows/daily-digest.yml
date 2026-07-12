@@ -78,6 +78,10 @@ jobs:
       - name: Send Feishu notification
         env:
           FEISHU_WEBHOOK_URLS: ${{ secrets.FEISHU_WEBHOOK_URLS }}
+          # 创作者画像分流 webhook（未配置的画像静默跳过）
+          FEISHU_WEBHOOK_DANCE: ${{ secrets.FEISHU_WEBHOOK_DANCE }}
+          FEISHU_WEBHOOK_GAME: ${{ secrets.FEISHU_WEBHOOK_GAME }}
+          FEISHU_WEBHOOK_ENT: ${{ secrets.FEISHU_WEBHOOK_ENT }}
           PAGES_URL: https://tangzijian-hanakhhu.github.io/popular-radar
         run: pnpm notify:feishu
 

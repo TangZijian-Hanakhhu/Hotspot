@@ -6,7 +6,16 @@
 > LLM 后端已接入**火山方舟 Ark（doubao-seed-2.0-pro，思考模式默认关闭）**，通知渠道已打通到**飞书**（日报/周报/月报全覆盖）。
 >
 > **2026-07 重要变更**：① 全面移除英文报告与英文界面（数据源均为中文平台，砍掉约一半 LLM token 消耗）；
-> ② 三层防线杜绝思考模型的推理过程泄漏进报告（volcano 请求关闭 thinking、删除 reasoning_content 回退、callLlm 统一剥离 think 标签）。
+> ② 三层防线杜绝思考模型的推理过程泄漏进报告（volcano 请求关闭 thinking、删除 reasoning_content 回退、callLlm 统一剥离 think 标签）+ 第四层输出契约（H2 锚点掐头）。
+>
+> **2026-07 创作者定位改造（IMPROVEMENT.md P0-P5 已实施）**：目标受众明确为**娱乐/舞蹈/游戏自媒体创作者**——
+> ① 数据源扩至 12 个（新增 B站舞蹈/游戏/鬼畜/娱乐区、微博、快手、米哈游系动态），垂类源 `report: false` 只采集不出源报告；
+> ② 新增 **`classify.ts` 分类层**（来源先验 → 关键词规则 → LLM 批量兜底三级引擎），数据层过滤社会新闻；
+> ③ 新增 **5 份跨源专项日报**（ai-bgm / ai-dance / ai-meme / ai-game / ai-fandom，fandom 含风险标注），源报告裁撤至抖音 + B站综合 2 份；
+> ④ 全部 prompt 重构为创作者视角（可跟拍 BGM/舞蹈难度/玩梗方式/创作切入点），周报月报同步；
+> ⑤ 飞书支持**创作者画像分流推送**（config.yml `creator_profiles`，按 cares 标签过滤专项报告，独立 webhook）。
+>
+> ⚠️ 文中部分"（第 X 行）"行号基于改造前版本，以实际代码为准。
 
 ---
 
@@ -70,11 +79,13 @@ popular-radar **移植自 agents-radar** 的架构和约 70% 的代码（LLM pro
 
 ### 三阶段流水线
 
-整个日报生成流水线在 `src/index.ts` 的 `main()` 函数中编排，分为 3 个阶段：
+整个日报生成流水线在 `src/index.ts` 的 `main()` 函数中编排（创作者定位改造后为 5 个阶段）：
 
-1. **Phase 1 - 数据采集**（`fetchAllHotData`）：3 类数据源并行 fetch，每个都 `.catch()` 容错
-2. **Phase 2 - 报告生成**：3 份中文报告并行生成（LLM 摘要 + 文件保存 + Issue 创建）
-3. **Phase 3 - Highlights 生成**：从报告中提取要点，写入 `highlights.json`（扁平 `ReportHighlights` 结构），供飞书/Telegram 通知使用
+1. **Phase 1 - 数据采集**（`fetchAllHotData`）：12 个数据源并行 fetch，每个都 `.catch()` 容错
+2. **Phase 1.5 - 分类过滤**（`classifyAllData`）：来源先验 → 关键词规则 → LLM 批量兜底，三级引擎打娱乐标签并过滤社会新闻
+3. **Phase 2 - 源报告**：仅 `report: true` 的综合源（抖音、B站综合）各生成 1 份源报告
+4. **Phase 2.5 - 专项报告**（`aggregateByTag` + `saveTagReport`）：跨源聚合按标签生成 5 份专项日报（BGM/舞蹈/热梗/游戏/饭圈），与 Phase 2 并行执行
+5. **Phase 3 - Highlights 生成**：从全部报告中提取要点，写入 `highlights.json`（扁平 `ReportHighlights` 结构），供飞书/Telegram 通知使用（输出预算 3072）
 
 > 相比 agents-radar 的 6 阶段，popular-radar 精简为 3 阶段：无独立的交叉对比阶段，无跨平台对比（数据源结构差异大），highlights 直接在主流程末尾生成。
 
@@ -909,10 +920,11 @@ const ROLLUP_SOURCES = HOT_SOURCES.map((s) => `ai-${s.id}`);
 ```
 popular_radar/
 ├── src/
-│   ├── index.ts              # 主编排：3阶段 pipeline + main()
+│   ├── index.ts              # 主编排：5阶段 pipeline + main()
 │   ├── hot.ts                # DailyHotApi 通用客户端（fetchHotData/fetchAllHotData）
-│   ├── config.ts             # config.yml 加载器（loadConfig + HotSource 类型）
-│   ├── i18n.ts               # 中文字符串中心
+│   ├── classify.ts           # ★ 分类层：三级引擎(先验/关键词/LLM) + social-news 过滤 + 跨源聚合
+│   ├── config.ts             # config.yml 加载器（HotSource/CreatorProfile + keyword_tags）
+│   ├── i18n.ts               # 中文字符串中心（含 TAG_REPORT_META）
 │   ├── date.ts               # CST/UTC 日期工具
 │   │
 │   ├── LLM 层
@@ -930,7 +942,7 @@ popular_radar/
 │   │   └── prompts-data.ts   # 5个 prompt builder (keywords/videos/highlights/weekly/monthly, 纯中文)
 │   │
 │   ├── 报告层
-│   │   ├── report-savers.ts  # 通用 saveHotReport（按 contentType 分流）
+│   │   ├── report-savers.ts  # saveHotReport（源报告）+ saveTagReport（跨源专项报告）
 │   │   └── github.ts         # Issue 创建/标签/清理（精简版）
 │   │
 │   ├── 汇总与后处理
@@ -949,12 +961,16 @@ popular_radar/
 │   ├── weekly-digest.yml    # 周报 (volcano + 飞书 + Telegram)
 │   └── monthly-digest.yml   # 月报 (volcano + 飞书 + Telegram)
 │
-├── config.yml               # 平台/分区配置
+├── config.yml               # 数据源/关键词标签/创作者画像配置
 ├── digests/                 # 历史报告输出 (git tracked)
 │   └── YYYY-MM-DD/          # 每日报告目录
-│       ├── ai-douyin.md        # 抖音热搜日报
-│       ├── ai-bili.md          # B站热门视频日报
-│       ├── ai-bili-music.md    # B站热门音乐日报
+│       ├── ai-douyin.md        # 抖音热搜日报（综合源）
+│       ├── ai-bili.md          # B站热门视频日报（综合源）
+│       ├── ai-bgm.md           # 🎵 热门BGM日报（跨源专项）
+│       ├── ai-dance.md         # 💃 热门舞蹈跟拍日报（跨源专项）
+│       ├── ai-meme.md          # 😂 热梗与抽象日报（跨源专项）
+│       ├── ai-game.md          # 🎮 游戏热点日报（跨源专项）
+│       ├── ai-fandom.md        # ⭐ 饭圈动态日报（跨源专项，含风险标注）
 │       ├── ai-weekly.md        # 周报
 │       ├── ai-monthly.md       # 月报
 │       └── highlights.json     # 通知用摘要 (扁平 reportId → 亮点数组)
@@ -1044,5 +1060,8 @@ popular_radar/
 11. **通知静默降级** - Telegram/飞书在对应 secret 未配置时静默跳过，且都有 direct-run guard 防误发
 12. **多渠道一致性** - 日报/周报/月报三条流水线的飞书与 Telegram 推送行为对齐
 13. **思考过程零泄漏** - volcano 请求默认 `thinking: disabled`；基类空正文直接报错、绝不回退 `reasoning_content`；`callLlm` 统一剥离 `<think>` 标签——报告里只允许出现最终结论
-14. **输出契约强制执行** - prompt 约定首行为固定 H2 锚点，保存前 `extractFromFirstH2` 确定性裁到首个 `## `（去重复标题与一切锚前文本），无锚点即判失败不发布；不依赖模型自觉
+14. **输出契约强制执行** - prompt 约定首行为固定 H2 锚点，保存前 `extractFromFirstH2` 确定性裁到首个 `## `（去重复标题与一切锚前文本），无锚点即判失败不发布；不依赖模型自觉（源报告与专项报告均适用）
+15. **分类先于生成** - 所有条目在进 LLM 报告前经 `classify.ts` 三级引擎打标；娱乐关键词优先于 social-news 关键词（防"原神版本发布"误杀）；LLM 分类失败一律保留为 other 不过滤（宁多勿漏）
+16. **垂类源不出源报告** - `report: false` 的源只喂专项聚合；`tags` 来源先验跳过逐条分类；追新梗/新明星只改 config.yml `keyword_tags` 零代码
+17. **画像分流向后兼容** - 未配置任何 profile webhook 时，飞书行为与全量推送完全一致；profile 推送互相隔离，单个失败不影响其他
 ```

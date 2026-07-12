@@ -77,6 +77,22 @@ describe("config defaults", () => {
     const cfg = loadConfig("nonexistent.yml");
     expect(cfg.hotSources.length).toBeGreaterThan(0);
     expect(cfg.hotSources.some((s) => s.id === "douyin")).toBe(true);
+    expect(cfg.keywordTags).toEqual({});
+    expect(cfg.creatorProfiles).toEqual([]);
+  });
+
+  it("parses the real config.yml: report flags, keyword tags, profiles", async () => {
+    const { loadConfig } = await import("../config.ts");
+    const cfg = loadConfig();
+    // 综合源保留报告，垂类源 report: false
+    expect(cfg.hotSources.filter((s) => s.report).length).toBeGreaterThan(0);
+    expect(cfg.hotSources.some((s) => s.report === false)).toBe(true);
+    // 来源先验标签
+    expect(cfg.hotSources.some((s) => s.tags && s.tags.length > 0)).toBe(true);
+    // keyword_tags 与 creator_profiles
+    expect(Object.keys(cfg.keywordTags).length).toBeGreaterThan(0);
+    expect(cfg.creatorProfiles.length).toBeGreaterThan(0);
+    expect(cfg.creatorProfiles[0]?.feishuWebhookEnv).toBeTruthy();
   });
 });
 
@@ -88,6 +104,7 @@ describe("hot data shape", () => {
       name: "抖音热搜",
       limit: 50,
       contentType: "keywords",
+      report: true,
     };
     const data: HotData = { source, items: [], fetchSuccess: false };
     expect(data.source.id).toBe("douyin");

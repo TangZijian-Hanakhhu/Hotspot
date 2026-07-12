@@ -1,11 +1,14 @@
 /**
- * popular-radar: daily digest for short-video platform hot trends.
+ * popular-radar: daily digest for short-video platform hot trends,
+ * targeted at 娱乐/舞蹈/游戏自媒体创作者.
  *
- * Pipeline (mirrors agents-radar's structure, simplified for hot sources):
- *   1. Fetch all hot sources in parallel via DailyHotApi
- *   2. Generate Chinese reports in parallel (one report per source)
- *   3. Generate highlights for Telegram/Feishu notifications
- *   4. Create GitHub issues
+ * Pipeline:
+ *   1.   Fetch all hot sources in parallel via DailyHotApi
+ *   1.5  Classify every item (source priors -> keyword rules -> LLM fallback),
+ *        drop social-news noise
+ *   2.   Per-source reports for sources with `report: true` (综合源)
+ *   2.5  Cross-source tag reports (ai-bgm/ai-dance/ai-meme/ai-game/ai-fandom)
+ *   3.   Highlights for Telegram/Feishu notifications
  *
  * Chinese-only: data sources are Chinese platforms, so no English reports
  * are generated (saves ~50% LLM tokens).
@@ -19,7 +22,8 @@
 
 import { loadConfig } from "./config.ts";
 import { fetchAllHotData } from "./hot.ts";
-import { saveHotReport } from "./report-savers.ts";
+import { classifyAllData, aggregateByTag, CONTENT_TAGS } from "./classify.ts";
+import { saveHotReport, saveTagReport } from "./report-savers.ts";
 import { callLlm, parseLlmJson, saveFile, autoGenFooter } from "./report.ts";
 import { buildHighlightsPrompt, type ReportHighlights } from "./prompts-data.ts";
 import { toCstDateStr, toUtcStr } from "./date.ts";
@@ -28,7 +32,11 @@ import { toCstDateStr, toUtcStr } from "./date.ts";
 // Repo config - loaded from config.yml, falls back to built-in defaults
 // ---------------------------------------------------------------------------
 
-const { hotSources: HOT_SOURCES } = loadConfig();
+const { hotSources: HOT_SOURCES, keywordTags: KEYWORD_TAGS } = loadConfig();
+
+// Highlights output budget - raised from 2048 since tag reports joined the
+// report set (up to ~7 reports feed the prompt).
+const LLM_TOKENS_HIGHLIGHTS = 3072;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -60,25 +68,37 @@ async function main(): Promise<void> {
   console.log("  Fetching hot data in parallel...");
   const allHotData = await fetchAllHotData(HOT_SOURCES);
 
-  // 2. Generate + save all reports in parallel (Chinese only)
-  console.log("  Generating and saving reports in parallel...");
+  // 1.5 Classify + filter social-news (source priors -> keywords -> LLM)
+  console.log("  Classifying items...");
+  const classified = await classifyAllData(allHotData, KEYWORD_TAGS);
+
+  // 2 + 2.5 Generate all reports in parallel:
+  //   - per-source reports for sources with report: true (综合源)
+  //   - cross-source tag reports for each content tag (专项报告)
+  console.log("  Generating source + tag reports in parallel...");
   const reportContents: Record<string, string> = {};
   const footer = autoGenFooter();
 
-  await Promise.all(
-    allHotData.map(async (data) => {
-      const content = await saveHotReport(data, utcStr, dateStr, digestRepo, footer);
-      if (content) {
-        reportContents[`ai-${data.source.id}`] = content;
-      }
+  const byTag = aggregateByTag(classified);
+
+  await Promise.all([
+    ...classified
+      .filter((d) => d.source.report)
+      .map(async (data) => {
+        const content = await saveHotReport(data, utcStr, dateStr, digestRepo, footer);
+        if (content) reportContents[`ai-${data.source.id}`] = content;
+      }),
+    ...CONTENT_TAGS.map(async (tag) => {
+      const content = await saveTagReport(tag, byTag[tag], utcStr, dateStr, digestRepo, footer);
+      if (content) reportContents[`ai-${tag}`] = content;
     }),
-  );
+  ]);
 
   // 3. Generate highlights for Telegram/Feishu notifications
   console.log("  Generating highlights for notifications...");
   let highlights: ReportHighlights = {};
   try {
-    const raw = await callLlm(buildHighlightsPrompt(reportContents), 2048);
+    const raw = await callLlm(buildHighlightsPrompt(reportContents), LLM_TOKENS_HIGHLIGHTS);
     highlights = parseLlmJson<ReportHighlights>(raw);
   } catch (err) {
     console.error(`  [highlights] generation failed: ${err}`);

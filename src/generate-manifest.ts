@@ -14,7 +14,18 @@ const MANIFEST_PATH = "manifest.json";
 const FEED_PATH = "feed.xml";
 const SITE_URL = "https://tangzijian-hanakhhu.github.io/popular-radar";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const REPORT_FILES = ["ai-douyin", "ai-bili", "ai-bili-music", "ai-weekly", "ai-monthly"] as const;
+const REPORT_FILES = [
+  "ai-douyin",
+  "ai-bili",
+  "ai-bili-music", // legacy per-source report (kept for historical dates)
+  "ai-bgm",
+  "ai-dance",
+  "ai-meme",
+  "ai-game",
+  "ai-fandom",
+  "ai-weekly",
+  "ai-monthly",
+] as const;
 const MAX_FEED_ITEMS = 30;
 
 interface DateEntry {

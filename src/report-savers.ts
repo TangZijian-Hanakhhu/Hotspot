@@ -7,8 +7,13 @@
  * pattern as agents-radar's saveHnReport. Chinese-only.
  */
 
-import { getReportMeta, ISSUE_LABELS } from "./i18n.ts";
-import { buildKeywordsPrompt, buildVideosPrompt } from "./prompts-data.ts";
+import { getReportMeta, ISSUE_LABELS, TAG_REPORT_META } from "./i18n.ts";
+import {
+  buildKeywordsPrompt,
+  buildVideosPrompt,
+  buildTagReportPrompt,
+  type TagReportItem,
+} from "./prompts-data.ts";
 import { callLlm, saveFile, extractFromFirstH2 } from "./report.ts";
 import { createGitHubIssue } from "./github.ts";
 import type { HotData } from "./hot.ts";
@@ -80,6 +85,73 @@ export async function saveHotReport(
     return content;
   } catch (err) {
     console.error(`  [${data.source.id}] Report generation failed: ${err}`);
+    return null;
+  }
+}
+
+/**
+ * Generate and save a cross-source tag report (P4: ai-bgm / ai-dance /
+ * ai-meme / ai-game / ai-fandom). Same guard -> LLM -> contract -> header ->
+ * save -> issue -> catch pattern as saveHotReport.
+ *
+ * @param tag        - content tag (bgm/dance/meme/game/fandom)
+ * @param items      - classified items aggregated across all sources
+ * @param utcStr     - compact UTC timestamp for the header
+ * @param dateStr    - CST date string (file path + issue title)
+ * @param digestRepo - GitHub owner/repo for issue creation (empty = skip)
+ * @param footer     - auto-generated footer markdown
+ */
+export async function saveTagReport(
+  tag: string,
+  items: TagReportItem[],
+  utcStr: string,
+  dateStr: string,
+  digestRepo: string,
+  footer: string,
+): Promise<string | null> {
+  // 1. Guard - skip when no items carry this tag today
+  if (items.length === 0) {
+    console.log(`  [ai-${tag}] No items for this tag today, skipping report.`);
+    return null;
+  }
+
+  console.log(`  [ai-${tag}] Calling LLM for tag report (${items.length} items)...`);
+  try {
+    // 2. LLM call
+    const raw = await callLlm(buildTagReportPrompt(tag, items, dateStr));
+
+    // 3. Output contract: same H2-anchor enforcement as source reports
+    const summary = extractFromFirstH2(raw);
+    if (!summary) {
+      console.error(`  [ai-${tag}] Output has no "## " section anchor, skipping publish.`);
+      return null;
+    }
+
+    // 4. Header
+    const meta = TAG_REPORT_META[tag] ?? {
+      title: `${tag}日报`,
+      issueTitle: (d: string) => `📊 ${tag}日报 ${d}`,
+    };
+    const header =
+      `# ${meta.title} ${dateStr}\n\n` +
+      `> 数据来源: 跨平台聚合 | 共 ${items.length} 条 | 生成时间: ${utcStr} UTC\n\n` +
+      `---\n\n`;
+
+    // 5. Assemble + save
+    const content = header + summary + footer;
+    console.log(`  Saved ${saveFile(content, dateStr, `ai-${tag}.md`)}`);
+
+    // 6. GitHub issue (optional)
+    if (digestRepo) {
+      const label = ISSUE_LABELS[tag] ?? tag;
+      const issueUrl = await createGitHubIssue(meta.issueTitle(dateStr), content, label);
+      console.log(`  Created issue: ${issueUrl}`);
+    }
+
+    // 7. Return content for highlights generation
+    return content;
+  } catch (err) {
+    console.error(`  [ai-${tag}] Tag report generation failed: ${err}`);
     return null;
   }
 }
