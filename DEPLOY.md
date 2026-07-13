@@ -93,3 +93,24 @@ git push -u origin main
 | 每月 1 日 02:00 | 10:00 | Monthly | 汇总上月 → 月报 → commit → 飞书推送 |
 
 配置完成后无需任何人工干预，三条流水线会按上表自动运行并推送到飞书。
+
+---
+
+## 停止与删除部署
+
+详细步骤见 [README.md 的「🛑 停止运行」与「🗑️ 删除部署」](README.md#-停止运行)，此处给出简要速查：
+
+### 暂停（保留数据，可恢复）
+
+- **禁用工作流**：Actions -> 选中三个 workflow -> ⋯ -> Disable workflow（恢复点 Enable）
+- **停止通知**：删除 Secrets 中的 `FEISHU_WEBHOOK_URLS` / `TELEGRAM_BOT_TOKEN`，推送步骤自动跳过
+- **改为手动**：注释 workflow 中的 `schedule` 行，保留 `workflow_dispatch`
+
+### 彻底删除（不可逆）
+
+1. 禁用或删除 `.github/workflows/` 下的 4 个 yml
+2. 删除全部 GitHub Secrets（ARK_API_KEY / FEISHU_* / TELEGRAM_*）
+3. 关闭 GitHub Pages（Settings -> Pages -> Unpublish）
+4. 删除仓库（Settings -> Danger Zone -> Delete this repository）
+5. 撤销 LLM API Key（火山方舟/DeepSeek 控制台删除或重置）
+6. 删除飞书群机器人 webhook / Telegram Bot（@BotFather `/deletebot`）

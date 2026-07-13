@@ -214,9 +214,93 @@ git push
 
 | 时间 (UTC) | 北京时间 | 工作流 | 动作 |
 |-----------|---------|--------|------|
-| 每天 00:00 | 08:00 | Daily | 采集 → 生成 7 份日报 → commit → 飞书推送 → 清理过期 Issue |
-| 每周一 01:00 | 09:00 | Weekly | 汇总近 7 天日报 → 周报 → commit → 飞书推送 |
-| 每月 1 日 02:00 | 10:00 | Monthly | 汇总上月 → 月报 → commit → 飞书推送 |
+| 每天 00:00 | 08:00 | Daily | 采集 -> 生成 7 份日报 -> commit -> 飞书推送 -> 清理过期 Issue |
+| 每周一 01:00 | 09:00 | Weekly | 汇总近 7 天日报 -> 周报 -> commit -> 飞书推送 |
+| 每月 1 日 02:00 | 10:00 | Monthly | 汇总上月 -> 月报 -> commit -> 飞书推送 |
+
+---
+
+## 🛑 停止运行
+
+如果只是暂时不想让系统自动运行（保留代码和数据，方便以后恢复），按以下步骤操作即可，**不需要删除仓库**。
+
+### 方法一：禁用所有工作流（推荐，最快）
+
+1. 进入仓库 **Actions** 页面
+2. 左侧分别点击 `Daily Popular Radar` / `Weekly Popular Radar` / `Monthly Popular Radar`
+3. 点击右上角 **⋯ -> Disable workflow**
+
+禁用后工作流不再按 cron 触发，但代码和已生成的报告保留。恢复时点击 **Enable workflow** 即可。
+
+### 方法二：改为手动触发（保留随时手跑能力）
+
+把三个 workflow 文件（`.github/workflows/*-digest.yml`）中的 `schedule` 触发器注释掉或删除，只保留 `workflow_dispatch`：
+
+```yaml
+on:
+  # schedule:
+  #   - cron: "0 0 * * *"   # 注释掉即不再自动触发
+  workflow_dispatch:           # 保留手动触发
+```
+
+提交后，系统不再自动运行，但你随时可以在 **Actions -> Run workflow** 手动触发。
+
+### 方法三：暂停飞书/Telegram 推送
+
+如果不想要通知但不影响报告生成：
+- 飞书：删除 GitHub Secrets 中的 `FEISHU_WEBHOOK_URLS`（及 `FEISHU_WEBHOOK_DANCE/GAME/ENT`），推送步骤会自动跳过
+- Telegram：删除 `TELEGRAM_BOT_TOKEN`，推送步骤会自动跳过
+
+报告仍会生成并 commit 到仓库、发布 Issue，只是不发通知。
+
+---
+
+## 🗑️ 删除部署
+
+如果确定不再使用，想彻底清理所有资源，按以下顺序操作（**不可逆**）。
+
+### 第 1 步：禁用或删除工作流
+
+进入 **Actions** 页面，对 3 个工作流分别点击 **⋯ -> Disable workflow**（或直接删除 `.github/workflows/` 下的 4 个 yml 文件后提交）。
+
+> 先禁用工作流，避免删除过程中触发新的运行。
+
+### 第 2 步：删除 GitHub Secrets
+
+**Settings -> Secrets and variables -> Actions**，逐个删除以下 Secret：
+- `ARK_API_KEY`
+- `FEISHU_WEBHOOK_URLS` / `FEISHU_WEBHOOK_DANCE` / `FEISHU_WEBHOOK_GAME` / `FEISHU_WEBHOOK_ENT`
+- `TELEGRAM_BOT_TOKEN`
+- `DAILYHOT_BASE_URL`（如有）
+- 其他你添加过的 Secret
+
+### 第 3 步：关闭 GitHub Pages（如已开启）
+
+**Settings -> Pages**，点击 **Unpublish site**（或删除 Pages 配置）。
+
+### 第 4 步：关闭 Actions 写权限（可选）
+
+**Settings -> Actions -> General -> Workflow permissions** 改回 **Read repository permissions only**。
+
+### 第 5 步：删除飞书/Telegram 机器人（可选）
+
+- **飞书**：在群设置中删除你添加的自定义机器人 webhook（每个画像群各一个）
+- **Telegram**：在 @BotFather 中对你的 Bot 发送 `/deletebot` 并确认
+
+### 第 6 步：删除仓库（彻底清除）
+
+**Settings -> 滚动到底部 Danger Zone -> Delete this repository**，按提示输入仓库名称确认删除。
+
+> 删除仓库会同时清除所有代码、报告（`digests/`）、Issues、Actions 历史和 Pages 站点。**此操作不可撤销。**
+>
+> 如果只想保留代码但停用服务，做到第 4 步即可，不必删除整个仓库。
+
+### 第 7 步：撤销 API Key（安全收尾）
+
+最后建议在对应平台**撤销/重置 API Key**，避免泄露的 key 被滥用：
+- **火山方舟**：[火山引擎控制台](https://console.volcengine.com/ark) -> API Key 管理 -> 删除或重置
+- **DeepSeek**：[DeepSeek 平台](https://platform.deepseek.com/) -> API Keys -> 删除
+- **OpenAI** / **OpenRouter** 等：在对应平台后台撤销
 
 ---
 
